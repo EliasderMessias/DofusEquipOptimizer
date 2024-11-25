@@ -23,29 +23,27 @@ class BaseModel():
             return f"<{self.__class__.__name__}({','.join(field_strings)})>"
         return f"<{self.__class__.__name__} {id(self)}>"
     
-Base = declarative_base()
+Base = declarative_base(cls=BaseModel)
 
-class Equipment(Base, BaseModel):
+class Equipment(Base):
     __tablename__ = 'equipment'
     id: Mapped[int] = mapped_column(primary_key = True)
     name: Mapped[str] = mapped_column()
     level: Mapped[int] = mapped_column()
     type : Mapped[str] = mapped_column()
+    conditions: Mapped[Optional['Condition_Tree']] = relationship(uselist = False)
+    combat_effect: Mapped[Optional[str]] = mapped_column()
+    stats: Mapped[List['Effect']] = relationship('Effect')
+
+    set_id: Mapped[int] = mapped_column(ForeignKey('set.id'))
+    parent_set: Mapped[Optional['Set']] = relationship('Set', back_populates = 'items') 
 
     __mapper_args__ = {'polymorphic_on': type, 'polymorphic_identity': 'equipment'}
-
-    conditions: Mapped[Optional['Condition_Tree']] = relationship('Condition_Tree', back_populates = 'equipment')
-
-    combat_effect: Mapped[Optional[str]] = mapped_column()
-    stats: Mapped[List['Effect']] = relationship('Effect', back_populates = 'equipment')
-
-    set_id: Mapped[Optional[int]] = mapped_column(ForeignKey('set.id'))
-    parent_set: Mapped[Optional['Set']] = relationship('Set', back_populates = 'equipment') 
 
 class Weapon(Equipment):
     __tablename__ = 'weapon'
     id: Mapped[int] = mapped_column(ForeignKey('equipment.id'), primary_key = True)
-    attack_effect: Mapped[List['Effect']] = relationship('Effect', back_populates = 'weapon')
+    attack_effect: Mapped[List['Effect']] = relationship('Effect', foreign_keys='Effect.equipment_id')
     criticalchance: Mapped[int] = mapped_column()
     critical_effect: Mapped[Optional[int]] = mapped_column()
     attack_cost: Mapped[int] = mapped_column()
@@ -58,21 +56,29 @@ class Weapon(Equipment):
 class Effect(Base):
     __tablename__ = 'effect'
     id: Mapped[int] = mapped_column(primary_key = True)
+    equipment_id: Mapped[Optional[int]] = mapped_column(ForeignKey('equipment.id'))
+    set_id: Mapped[Optional[int]] = mapped_column(ForeignKey('set_effect.set_id'))
     name: Mapped[str] = mapped_column()
     int_maximum: Mapped[Optional[int]] = mapped_column()
     int_minimum: Mapped[int] = mapped_column()
     
+    def __repr__(self):
+        return self._repr(id = self.id, name = self.name, max = self.int_maximum, min = self.int_minimum)
+
+
 class Condition_Tree(Base):
     __tablename__ = 'condition_tree'
     id: Mapped[int] = mapped_column(primary_key = True)
-    condition: Mapped[Optional['Condition_Effect']] = relationship('Condition_Effect', back_populates = 'condition_tree')
-       
+    equipment_id: Mapped[int] = mapped_column(ForeignKey('equipment.id')) 
     logic: Mapped[Optional[str]] = mapped_column()  # "and" or "or"
-    children: Mapped[Optional['Condition_Tree']] = relationship('Condition_Tree', cascade = 'all, delete-orphan', back_populates = 'condition_tree')
+    condition: Mapped[Optional['Condition_Effect']] = relationship('Condition_Effect')    
+    parent_id: Mapped[Optional[int]] = mapped_column(ForeignKey('condition_tree.id'))
+    children: Mapped[Optional['Condition_Tree']] = relationship('Condition_Tree', cascade = 'all, delete-orphan')
 
 class Condition_Effect(Base):
     __tablename__ = 'condition_effect'
     id: Mapped[int] = mapped_column(primary_key = True)
+    tree_node_id: Mapped[int] = mapped_column(ForeignKey('condition_tree.id'))
     relation: Mapped[str] = mapped_column()
     characteristic: Mapped[str] = mapped_column()
     value: Mapped[int] = mapped_column()
@@ -81,12 +87,11 @@ class Set(Base):
     __tablename__ = 'set'
     id: Mapped[int] = mapped_column(primary_key = True)
     name: Mapped[str] = mapped_column()
-    
-    items: Mapped[List['Equipment']] = relationship('Equipment', back_populates = 'set')
-
-    set_bonus: Mapped[Dict[(int,'Set_Effect')]] = relationship('Set_Effect', back_populates = 'set') 
+    items: Mapped[List['Equipment']] = relationship('Equipment', back_populates = 'parent_set')
+    set_bonus: Mapped[List['Set_Effect']] = relationship('Set_Effect') 
 
 class Set_Effect(Base):
     __tablename__ = 'set_effect'
     id: Mapped[int] = mapped_column(primary_key = True)
-    stats: Mapped[List['Effect']] = relationship('Effect', back_populates = 'set_effect')  
+    set_id: Mapped[int] = mapped_column(ForeignKey('set.id'))
+    stats: Mapped[List['Effect']] = relationship('Effect')  
