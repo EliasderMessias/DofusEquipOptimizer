@@ -1,7 +1,5 @@
-import requests
-import json
-from sqlalchemy import create_engine, Column, Integer, String, ForeignKey
-from sqlalchemy.orm import declarative_base, sessionmaker, relationship, Mapped, mapped_column, exc
+from sqlalchemy import ForeignKey
+from sqlalchemy.orm import declarative_base, relationship, Mapped, mapped_column, exc
 from typing import List, Optional, Dict, Any
 
 class BaseModel():
@@ -41,6 +39,7 @@ class Equipment(Base, BaseModel):
     combat_effect: Mapped[Optional[str]] = mapped_column()
     stats: Mapped[List['Effect']] = relationship('Effect', back_populates = 'equipment')
 
+    set_id: Mapped[Optional[int]] = mapped_column(ForeignKey('set.id'))
     parent_set: Mapped[Optional['Set']] = relationship('Set', back_populates = 'equipment') 
 
 class Weapon(Equipment):
@@ -59,17 +58,10 @@ class Weapon(Equipment):
 class Effect(Base):
     __tablename__ = 'effect'
     id: Mapped[int] = mapped_column(primary_key = True)
-    type_id: Mapped[int] = mapped_column(ForeignKey("effect_type.id"))
-    type: Mapped['Effect_Type'] = relationship('Effect_Type', back_populates = 'effect')
-    
-
-class Effect_Type(Base):
-    __tablename__ = 'effect_type'
-    id: Mapped[int] = mapped_column(primary_key = True)
     name: Mapped[str] = mapped_column()
     int_maximum: Mapped[Optional[int]] = mapped_column()
     int_minimum: Mapped[int] = mapped_column()
-
+    
 class Condition_Tree(Base):
     __tablename__ = 'condition_tree'
     id: Mapped[int] = mapped_column(primary_key = True)
@@ -92,27 +84,9 @@ class Set(Base):
     
     items: Mapped[List['Equipment']] = relationship('Equipment', back_populates = 'set')
 
-    set_bonus: Mapped[List['Set_Effect']] = relationship('Set_Effect', back_populates = 'set')
+    set_bonus: Mapped[Dict[(int,'Set_Effect')]] = relationship('Set_Effect', back_populates = 'set') 
 
 class Set_Effect(Base):
     __tablename__ = 'set_effect'
     id: Mapped[int] = mapped_column(primary_key = True)
-    n_item: Mapped[int] = mapped_column()
-
-    stats: Mapped[List['Effect']] = relationship('Effect', back_populates = 'set_effect') 
-
-
-
-    
-
-
-
-
-
-
-    
-
-#data = requests.get('https://api.dofusdu.de/dofus2/en/items/equipment/26009')
-#print(json.dumps(data.json()))
-
-
+    stats: Mapped[List['Effect']] = relationship('Effect', back_populates = 'set_effect')  
