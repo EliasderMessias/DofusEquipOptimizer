@@ -1,4 +1,3 @@
-import schema
 import json
 import requests
 from schema import Set, Set_Effect, Effect
@@ -10,16 +9,14 @@ def parse_sets(sets_json):
         #print(json.dumps(sets))
         set_boni = dict.fromkeys((range(len(set['effects']))))
         for i,seteffect in enumerate(set['effects']):
-            print(i)
             partial_setbonus = [None] * len(seteffect)  # captures the bonus the set gives for the element 
             for j, stat in enumerate(seteffect):
-                print(j)
                 partial_setbonus[j] = Effect(
                     name = stat['type']['name'],
                     int_minimum = stat['int_minimum']
                 )
-            set_boni[i] = (seteffect[0]['item_combination'], partial_setbonus)
-        print(set_boni)
+            set_boni[i] = partial_setbonus
+        print(json.dumps(set_boni, indent=4, default=str))
 
 
 
